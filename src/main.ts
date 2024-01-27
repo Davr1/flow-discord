@@ -9,7 +9,6 @@ import {
     Commands,
     Events,
     CommandResponses,
-    Snowflake,
     AUTH,
 } from "./constants";
 import { randomUUID } from "crypto";
@@ -63,6 +62,10 @@ export interface ICommand<T extends RPCCommands> extends IPayload<T, null> {
 export interface ICommandResponse<T extends RPCCommands> extends IPayload<T, RPCEvents.Error | null> {
     nonce: string;
     data: T extends keyof CommandResponses ? CommandResponses[T] : null;
+}
+export interface IErrorCommandResponse<T extends RPCCommands> extends IPayload<T, RPCEvents.Error> {
+    nonce: string;
+    data: Events[RPCEvents.Error];
 }
 
 export interface IEvent<T extends RPCCommands, R extends RPCEvents | null> extends IPayload<T, R> {
@@ -159,10 +162,12 @@ class DiscordClient {
 
             let callback = (event: WebSocket.MessageEvent) => {
                 try {
-                    const data: ICommandResponse<T> = JSON.parse(event.data.toString());
+                    let data: IPayload<T> = JSON.parse(event.data.toString());
 
                     if (data.nonce === nonce) {
-                        data.evt === RPCEvents.Error ? reject(data) : resolve(data);
+                        data.evt !== RPCEvents.Error
+                            ? resolve(data as ICommandResponse<T>)
+                            : reject(data as IErrorCommandResponse<T>);
 
                         this.socket!.removeEventListener("message", callback);
                     }
@@ -217,5 +222,10 @@ class DiscordClient {
 
     await client.tryConnect();
 
-    console.log(await client.send(RPCCommands.GetChannel, { channel_id: "1" }).then((r) => r.data));
+    console.log(
+        await client
+            .send(RPCCommands.GetChannel, { channel_id: "1" })
+            .then((r) => r.data)
+            .catch(console.log)
+    );
 })();
