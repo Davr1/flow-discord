@@ -17,6 +17,10 @@ export enum RPCCommands {
 export enum RPCEvents {
     Ready = "READY",
     Error = "ERROR",
+
+    GuildStatus = "GUILD_STATUS",
+    GuildCreate = "GUILD_CREATE",
+    ChannelCreate = "CHANNEL_CREATE",
 }
 
 export enum RPCErrors {

@@ -112,13 +112,9 @@ export interface ICommandResponse<T extends RPCCommands> extends IPayload<T, nul
     data: T extends keyof CommandResponses ? CommandResponses[T] : null;
 }
 
-export interface IErrorCommandResponse<T extends RPCCommands> extends IPayload<T, RPCEvents.Error> {
-    nonce: string;
-    data: Events[RPCEvents.Error];
-}
-
 export interface IEvent<T extends RPCCommands, R extends RPCEvents | null> extends IPayload<T, R> {
     cmd: T;
+    nonce: string;
     evt: R;
     data: R extends keyof Events ? Events[R] : null;
 }

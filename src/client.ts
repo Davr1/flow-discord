@@ -1,7 +1,7 @@
-import { OAUTH2_CLIENT_ID, RPCCommands, RPCEvents, ORIGIN, AUTH } from "./constants";
+import { OAUTH2_CLIENT_ID, RPCCommands, RPCEvents, ORIGIN, AUTH, RPCErrors } from "./constants";
 import { randomUUID } from "crypto";
 import WebSocket from "ws";
-import { Commands, ICommand, ICommandResponse, IErrorCommandResponse, IPayload } from "./types";
+import { Commands, ICommand, ICommandResponse, IEvent, IPayload } from "./types";
 
 class DiscordClient {
     private socket: WebSocket | null = null;
@@ -95,7 +95,7 @@ class DiscordClient {
                     if (data.nonce === nonce) {
                         data.evt !== RPCEvents.Error
                             ? resolve(data as ICommandResponse<T>)
-                            : reject(data as IErrorCommandResponse<T>);
+                            : reject(data as IEvent<T, RPCEvents.Error>);
 
                         this.socket!.removeEventListener("message", callback);
                     }
