@@ -34,3 +34,6 @@ jobs:
                   tag_name: "v${{steps.version.outputs.prop}}"
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+    contents: write
