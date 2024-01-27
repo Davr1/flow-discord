@@ -1,6 +1,7 @@
 export const TOKEN_ENDPOINT = "https://streamkit.discord.com/overlay/token";
 export const OAUTH2_CLIENT_ID = "207646673902501888";
 export const ORIGIN = "https://streamkit.discord.com";
+export const AUTH = "https://streamkit.discord.com/overlay/token";
 import { IEvent } from "./main.js";
 
 export enum RPCCommands {
@@ -32,7 +33,29 @@ export interface Application {
     rpc_origins: string[];
     name: string;
 }
-
+export interface BasicGuild {
+    id: Snowflake;
+    name: string;
+    icon_url: string;
+}
+export interface Guild extends BasicGuild {
+    members: never[];
+    vanity_url_code: string | null;
+}
+export interface BasicChannel {
+    id: Snowflake;
+    name: string;
+    type: ChannelType;
+}
+export interface Channel extends BasicChannel {
+    guild_id: Snowflake;
+    topic: string;
+    position: number;
+    bitrate: number;
+    user_limit: number;
+    messages: [];
+    voice_states: [];
+}
 export type Commands = {
     [RPCCommands.Authorize]: {
         client_id: Snowflake;
@@ -41,8 +64,17 @@ export type Commands = {
     [RPCCommands.Authenticate]: {
         access_token: string;
     };
+    [RPCCommands.GetGuild]: {
+        guild_id: Snowflake;
+        timeout?: number;
+    };
+    [RPCCommands.GetChannels]: {
+        guild_id: Snowflake;
+    };
+    [RPCCommands.GetChannel]: {
+        channel_id: Snowflake;
+    };
 };
-
 export type CommandResponses = {
     [RPCCommands.Authorize]: {
         code: string;
@@ -53,10 +85,16 @@ export type CommandResponses = {
         user: BasicUser;
         scopes: string[];
     };
+    [RPCCommands.GetGuilds]: {
+        guilds: BasicGuild[];
+    };
+    [RPCCommands.GetGuild]: Guild;
+    [RPCCommands.GetChannels]: { channels: BasicChannel[] };
+    [RPCCommands.GetChannel]: Channel;
 };
 
 export type Events = {
-    [RPCEvents.READY]: {
+    [RPCEvents.Ready]: {
         config: {
             api_endpoint: string;
             cdn_host: string;
@@ -65,27 +103,15 @@ export type Events = {
         user?: BasicUser;
         v: 1;
     };
-    [RPCEvents.ERROR]: {
+    [RPCEvents.Error]: {
         code: RPCErrors;
         message: string;
     };
 };
 
 export enum RPCEvents {
-    GUILD_STATUS = "GUILD_STATUS",
-
-    VOICE_STATE_CREATE = "VOICE_STATE_CREATE",
-    VOICE_STATE_DELETE = "VOICE_STATE_DELETE",
-    VOICE_STATE_UPDATE = "VOICE_STATE_UPDATE",
-    SPEAKING_START = "SPEAKING_START",
-    SPEAKING_STOP = "SPEAKING_STOP",
-
-    MESSAGE_CREATE = "MESSAGE_CREATE",
-    MESSAGE_UPDATE = "MESSAGE_UPDATE",
-    MESSAGE_DELETE = "MESSAGE_DELETE",
-
-    READY = "READY",
-    ERROR = "ERROR",
+    Ready = "READY",
+    Error = "ERROR",
 }
 
 export enum RPCErrors {
@@ -106,7 +132,7 @@ export enum RPCErrors {
     OAUTH2_ERROR = 5000,
 }
 
-export enum ChannelTypes {
+export enum ChannelType {
     DM = 1,
     GROUP_DM = 3,
     GUILD_TEXT = 0,

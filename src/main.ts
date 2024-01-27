@@ -10,6 +10,7 @@ import {
     Events,
     CommandResponses,
     Snowflake,
+    AUTH,
 } from "./constants";
 import { randomUUID } from "crypto";
 import WebSocket from "ws";
@@ -59,7 +60,7 @@ export interface ICommand<T extends RPCCommands> extends IPayload<T, null> {
     args: T extends keyof Commands ? Commands[T] : Record<string, any>;
 }
 
-export interface ICommandResponse<T extends RPCCommands> extends IPayload<T, null> {
+export interface ICommandResponse<T extends RPCCommands> extends IPayload<T, RPCEvents.Error | null> {
     nonce: string;
     data: T extends keyof CommandResponses ? CommandResponses[T] : null;
 }
@@ -72,10 +73,13 @@ export interface IEvent<T extends RPCCommands, R extends RPCEvents | null> exten
 
 class DiscordClient {
     private socket: WebSocket | null = null;
+    private accessToken: string | null;
     connected: boolean = false;
     ready: boolean = false;
 
-    constructor() {}
+    constructor(token: string | null = null) {
+        this.accessToken = token;
+    }
 
     async tryConnect(): Promise<void> {
         let tries = 0;
@@ -89,6 +93,17 @@ class DiscordClient {
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
         }
+
+        try {
+            await this.authenticate();
+        } catch {
+            // token is outdated or invalid
+            await this.authorize();
+            await this.authenticate();
+        }
+
+        console.log(this.accessToken);
+        console.log("Connected and authorized");
     }
 
     private async connect(tries = 0): Promise<void> {
@@ -110,7 +125,6 @@ class DiscordClient {
                     reject("Connection error");
                 },
                 onopen: () => {
-                    console.log("Connected");
                     this.connected = true;
                 },
                 onmessage: (event: MessageEvent) => {
@@ -148,7 +162,8 @@ class DiscordClient {
                     const data: ICommandResponse<T> = JSON.parse(event.data.toString());
 
                     if (data.nonce === nonce) {
-                        resolve(data);
+                        data.evt === RPCEvents.Error ? reject(data) : resolve(data);
+
                         this.socket!.removeEventListener("message", callback);
                     }
                 } catch (error) {
@@ -164,30 +179,43 @@ class DiscordClient {
         try {
             const { cmd, evt, data }: IPayload = JSON.parse(event.data);
 
-            if (cmd === RPCCommands.Dispatch && evt === RPCEvents.READY) {
+            if (cmd === RPCCommands.Dispatch && evt === RPCEvents.Ready) {
                 this.ready = true;
             }
 
-            if (evt === RPCEvents.ERROR) {
+            if (evt === RPCEvents.Error) {
                 console.log(data);
-                this.disconnect();
             }
         } catch (error) {
             console.log(error);
         }
     }
-}
 
-console.log(11111111111111);
+    private async authorize(): Promise<void> {
+        let { data } = await this.send(RPCCommands.Authorize, {
+            client_id: OAUTH2_CLIENT_ID,
+            scopes: ["rpc"],
+        });
+
+        const headers = { method: "POST", body: JSON.stringify(data) };
+        let { access_token } = (await fetch(AUTH, headers).then((res) => res.json())) as { access_token: string };
+
+        this.accessToken = access_token;
+    }
+
+    private async authenticate(): Promise<void> {
+        let { data } = await this.send(RPCCommands.Authenticate, {
+            access_token: this.accessToken!,
+        });
+
+        console.log(`Logged in as ${data.user.username}`);
+    }
+}
 
 (async () => {
     let client = new DiscordClient();
+
     await client.tryConnect();
 
-    let response = await client.send(RPCCommands.Authorize, {
-        client_id: OAUTH2_CLIENT_ID as Snowflake,
-        scopes: ["rpc"],
-    });
-
-    console.log(response);
+    console.log(await client.send(RPCCommands.GetChannel, { channel_id: "1" }).then((r) => r.data));
 })();
