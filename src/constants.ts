@@ -1,7 +1,6 @@
-export const TOKEN_ENDPOINT = "https://streamkit.discord.com/overlay/token";
 export const OAUTH2_CLIENT_ID = "207646673902501888";
 export const ORIGIN = "https://streamkit.discord.com";
-export const AUTH = "https://streamkit.discord.com/overlay/token";
+export const AUTH = `${ORIGIN}/overlay/token`;
 
 export enum RPCCommands {
     Dispatch = "DISPATCH",

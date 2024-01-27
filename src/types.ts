@@ -2,7 +2,7 @@ import { ChannelType, RPCCommands, RPCEvents, RPCErrors } from "./constants";
 
 export type Snowflake = `${number}` | number;
 
-export interface BasicUser {
+export interface User {
     id: Snowflake;
     username: string;
     avatar: string | null;
@@ -17,24 +17,20 @@ export interface Application {
     name: string;
 }
 
-export interface BasicGuild {
+export interface Guild {
     id: Snowflake;
     name: string;
     icon_url: string;
-}
 
-export interface Guild extends BasicGuild {
     members: never[];
     vanity_url_code: string | null;
 }
 
-export interface BasicChannel {
+export interface Channel {
     id: Snowflake;
     name: string;
     type: ChannelType;
-}
 
-export interface Channel extends BasicChannel {
     guild_id: Snowflake;
     topic: string;
     position: number;
@@ -71,14 +67,14 @@ export type CommandResponses = {
     [RPCCommands.Authenticate]: {
         application: Application;
         expires: string;
-        user: BasicUser;
+        user: User;
         scopes: string[];
     };
     [RPCCommands.GetGuilds]: {
-        guilds: BasicGuild[];
+        guilds: Pick<Guild, "id" | "name" | "icon_url">[];
     };
     [RPCCommands.GetGuild]: Guild;
-    [RPCCommands.GetChannels]: { channels: BasicChannel[] };
+    [RPCCommands.GetChannels]: { channels: Pick<Channel, "id" | "name" | "type">[] };
     [RPCCommands.GetChannel]: Channel;
 };
 
@@ -89,7 +85,7 @@ export type Events = {
             cdn_host: string;
             environment: string;
         };
-        user?: BasicUser;
+        user?: User;
         v: 1;
     };
     [RPCEvents.Error]: {
@@ -111,7 +107,7 @@ export interface ICommand<T extends RPCCommands> extends IPayload<T, null> {
     args: T extends keyof Commands ? Commands[T] : Record<string, any>;
 }
 
-export interface ICommandResponse<T extends RPCCommands> extends IPayload<T, RPCEvents.Error | null> {
+export interface ICommandResponse<T extends RPCCommands> extends IPayload<T, null> {
     nonce: string;
     data: T extends keyof CommandResponses ? CommandResponses[T] : null;
 }

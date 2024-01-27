@@ -29,3 +29,5 @@ import { client } from "./client";
 // });
 
 // flow.run();
+
+console.log(client.connected);

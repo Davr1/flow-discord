@@ -16,25 +16,24 @@ class DiscordClient {
     async tryConnect(): Promise<void> {
         let tries = 0;
 
-        while (!this.connected && tries < 20) {
+        while (!this.connected) {
+            if (tries >= 20) return;
+
             try {
                 await this.connect(tries);
             } catch (error) {
                 console.log(error);
                 tries++;
-                await new Promise((resolve) => setTimeout(resolve, 100));
+                await new Promise((resolve) => setTimeout(resolve, 200));
             }
         }
 
-        try {
-            await this.authenticate();
-        } catch {
-            // token is outdated or invalid
+        if (!this.accessToken || !(await this.authenticate())) {
             await this.authorize();
             await this.authenticate();
         }
 
-        console.log(this.accessToken);
+        //console.log(this.accessToken);
         console.log("Connected and authorized");
     }
 
@@ -137,12 +136,18 @@ class DiscordClient {
         this.accessToken = access_token;
     }
 
-    private async authenticate(): Promise<void> {
-        let { data } = await this.send(RPCCommands.Authenticate, {
-            access_token: this.accessToken!,
-        });
+    private async authenticate(): Promise<boolean> {
+        try {
+            let { data } = await this.send(RPCCommands.Authenticate, {
+                access_token: this.accessToken!,
+            });
 
-        console.log(`Logged in as ${data.user.username}`);
+            console.log(`Logged in as ${data.user.username}`);
+
+            return true;
+        } catch {
+            return false;
+        }
     }
 }
 
