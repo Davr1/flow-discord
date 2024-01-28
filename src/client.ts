@@ -1,15 +1,22 @@
-import { OAUTH2_CLIENT_ID, RPCCommands, RPCEvents, ORIGIN, AUTH, RPCErrors } from "./constants";
+import { OAUTH2_CLIENT_ID, RPCCommands, RPCEvents, ORIGIN, AUTH } from "./constants";
 import { randomUUID } from "crypto";
 import WebSocket from "ws";
-import { Commands, ICommand, ICommandResponse, IEvent, IPayload } from "./types";
+import { Commands, EventCallbacks, ICommand, ICommandResponse, IEvent, IPayload } from "./types";
+import { EventEmitter } from "stream";
+import TypedEventEmitter from "typed-emitter";
 
-class DiscordClient {
+type CustomEventEmitter = new () => TypedEventEmitter<EventCallbacks> & {
+    emit: (event: RPCEvents, ...args: any[]) => boolean;
+};
+
+export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
     private socket: WebSocket | null = null;
     private accessToken: string | null;
     connected: boolean = false;
     ready: boolean = false;
 
     constructor(token: string | null = null) {
+        super();
         this.accessToken = token;
     }
 
@@ -72,19 +79,22 @@ class DiscordClient {
         this.connected = false;
     }
 
-    send<T extends RPCCommands>(
+    send<T extends RPCCommands, R extends RPCEvents | null = null>(
         type: T,
-        args: T extends keyof Commands ? Commands[T] : {}
+        args: R extends keyof Commands ? Commands[R] : T extends keyof Commands ? Commands[T] : Record<string, any>,
+        event?: R
     ): Promise<ICommandResponse<T>> {
         return new Promise((resolve, reject) => {
             if (!this.connected || !this.ready) reject("Client is not connected or ready");
 
             const nonce = randomUUID();
-            const command: ICommand<T> = {
+
+            let command: ICommand<T, R> = {
                 cmd: type,
                 nonce,
                 args,
             };
+            if (event) command.evt = event;
 
             this.socket!.send(JSON.stringify(command));
 
@@ -108,16 +118,32 @@ class DiscordClient {
         });
     }
 
+    subscribe<T extends RPCEvents>(
+        event: T,
+        args: T extends keyof Commands ? Commands[T] : Record<string, any>
+    ): Promise<ICommandResponse<RPCCommands.Subscribe>> {
+        return this.send(RPCCommands.Subscribe, args, event);
+    }
+
+    unsubscribe<T extends RPCEvents>(
+        event: T,
+        args: T extends keyof Commands ? Commands[T] : Record<string, any>
+    ): Promise<ICommandResponse<RPCCommands.Unsubscribe>> {
+        return this.send(RPCCommands.Unsubscribe, args, event);
+    }
+
     private handleMessage(event: MessageEvent): void {
         try {
-            const { cmd, evt, data }: IPayload = JSON.parse(event.data);
+            let payload: IPayload = JSON.parse(event.data);
 
-            if (cmd === RPCCommands.Dispatch && evt === RPCEvents.Ready) {
-                this.ready = true;
+            if (payload.cmd === RPCCommands.Dispatch) {
+                this.emit(payload.evt!, payload);
+
+                if (payload.evt === RPCEvents.Ready) this.ready = true;
             }
 
-            if (evt === RPCEvents.Error) {
-                console.log(data);
+            if (payload.evt === RPCEvents.Error) {
+                console.log(payload.data);
             }
         } catch (error) {
             console.log(error);
@@ -150,7 +176,3 @@ class DiscordClient {
         }
     }
 }
-
-export const client = new DiscordClient();
-
-client.tryConnect();

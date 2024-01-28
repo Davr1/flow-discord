@@ -12,6 +12,9 @@ export enum RPCCommands {
     GetGuilds = "GET_GUILDS",
     GetChannel = "GET_CHANNEL",
     GetChannels = "GET_CHANNELS",
+
+    Subscribe = "SUBSCRIBE",
+    Unsubscribe = "UNSUBSCRIBE",
 }
 
 export enum RPCEvents {

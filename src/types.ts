@@ -26,6 +26,8 @@ export interface Guild {
     vanity_url_code: string | null;
 }
 
+export type BasicGuild = Pick<Guild, "id" | "name" | "icon_url">;
+
 export interface Channel {
     id: Snowflake;
     name: string;
@@ -39,6 +41,8 @@ export interface Channel {
     messages: [];
     voice_states: [];
 }
+
+export type BasicChannel = Pick<Channel, "id" | "name" | "type">;
 
 export type Commands = {
     [RPCCommands.Authorize]: {
@@ -58,6 +62,10 @@ export type Commands = {
     [RPCCommands.GetChannel]: {
         channel_id: Snowflake;
     };
+
+    [RPCEvents.GuildStatus]: {
+        guild_id: Snowflake;
+    };
 };
 
 export type CommandResponses = {
@@ -71,11 +79,17 @@ export type CommandResponses = {
         scopes: string[];
     };
     [RPCCommands.GetGuilds]: {
-        guilds: Pick<Guild, "id" | "name" | "icon_url">[];
+        guilds: BasicGuild[];
     };
     [RPCCommands.GetGuild]: Guild;
-    [RPCCommands.GetChannels]: { channels: Pick<Channel, "id" | "name" | "type">[] };
+    [RPCCommands.GetChannels]: { channels: BasicChannel[] };
     [RPCCommands.GetChannel]: Channel;
+    [RPCCommands.Subscribe]: {
+        evt: RPCEvents;
+    };
+    [RPCCommands.Unsubscribe]: {
+        evt: RPCEvents;
+    };
 };
 
 export type Events = {
@@ -92,6 +106,12 @@ export type Events = {
         code: RPCErrors;
         message: string;
     };
+    [RPCEvents.GuildStatus]: {
+        guild: BasicGuild;
+        online: number;
+    };
+    [RPCEvents.GuildCreate]: BasicGuild;
+    [RPCEvents.ChannelCreate]: BasicChannel;
 };
 
 export interface IPayload<T extends RPCCommands = RPCCommands, R extends RPCEvents | null = RPCEvents> {
@@ -102,9 +122,9 @@ export interface IPayload<T extends RPCCommands = RPCCommands, R extends RPCEven
     args?: Record<string, any>;
 }
 
-export interface ICommand<T extends RPCCommands> extends IPayload<T, null> {
+export interface ICommand<T extends RPCCommands, R extends RPCEvents | null = null> extends IPayload<T, R> {
     nonce: string;
-    args: T extends keyof Commands ? Commands[T] : Record<string, any>;
+    args: R extends keyof Commands ? Commands[R] : T extends keyof Commands ? Commands[T] : Record<string, any>;
 }
 
 export interface ICommandResponse<T extends RPCCommands> extends IPayload<T, null> {
@@ -114,7 +134,10 @@ export interface ICommandResponse<T extends RPCCommands> extends IPayload<T, nul
 
 export interface IEvent<T extends RPCCommands, R extends RPCEvents | null> extends IPayload<T, R> {
     cmd: T;
-    nonce: string;
     evt: R;
     data: R extends keyof Events ? Events[R] : null;
 }
+
+export type EventCallbacks = {
+    [K in RPCEvents]: (event: IEvent<RPCCommands.Dispatch, K>) => void;
+};
