@@ -24,6 +24,10 @@ export enum RPCEvents {
     GuildStatus = "GUILD_STATUS",
     GuildCreate = "GUILD_CREATE",
     ChannelCreate = "CHANNEL_CREATE",
+
+    MessageCreate = "MESSAGE_CREATE",
+    MessageUpdate = "MESSAGE_UPDATE",
+    MessageDelete = "MESSAGE_DELETE",
 }
 
 export enum RPCErrors {
@@ -49,4 +53,11 @@ export enum ChannelType {
     DM = 1,
     GUILD_VOICE = 2,
     GROUP_DM = 3,
+}
+
+export enum Scopes {
+    RPC = "rpc",
+    IDENTIFY = "identify",
+    RPC_NOTIFICATIONS_READ = "rpc.notifications.read",
+    MESSAGES_READ = "messages.read",
 }

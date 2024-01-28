@@ -1,4 +1,4 @@
-import { OAUTH2_CLIENT_ID, RPCCommands, RPCEvents, ORIGIN, AUTH } from "./constants";
+import { OAUTH2_CLIENT_ID, RPCCommands, RPCEvents, ORIGIN, AUTH, Scopes } from "./constants";
 import { randomUUID } from "crypto";
 import WebSocket from "ws";
 import { Commands, EventCallbacks, ICommand, ICommandResponse, IEvent, IPayload } from "./types";
@@ -14,10 +14,12 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
     private accessToken: string | null;
     connected: boolean = false;
     ready: boolean = false;
+    scopes: Scopes[];
 
-    constructor(token: string | null = null) {
+    constructor(token: string | null = null, scopes: Scopes[] = []) {
         super();
         this.accessToken = token;
+        this.scopes = scopes;
     }
 
     async tryConnect(): Promise<void> {
@@ -40,7 +42,7 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
             await this.authenticate();
         }
 
-        //console.log(this.accessToken);
+        console.log(this.accessToken);
         console.log("Connected and authorized");
     }
 
@@ -153,7 +155,7 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
     private async authorize(): Promise<void> {
         let { data } = await this.send(RPCCommands.Authorize, {
             client_id: OAUTH2_CLIENT_ID,
-            scopes: ["rpc"],
+            scopes: this.scopes,
         });
 
         const headers = { method: "POST", body: JSON.stringify(data) };

@@ -7,7 +7,18 @@ export interface User {
     username: string;
     avatar: string | null;
     discriminator: string;
+
+    public_flags: number;
+    premium_type: number;
+    flags: number;
+    banner: string | null;
+    accent_color: number | null;
+    global_name: string;
+    avatar_decoration_data: string | null;
+    banner_color: string;
 }
+
+export type BasicUser = Pick<User, "id" | "username" | "avatar" | "discriminator">;
 
 export interface Application {
     description: string;
@@ -38,8 +49,27 @@ export interface Channel {
     position: number;
     bitrate: number;
     user_limit: number;
-    messages: [];
+    messages: Message[];
     voice_states: [];
+}
+
+export interface Message {
+    id: Snowflake;
+    blocked: boolean;
+    content: string;
+    content_parsed: any[];
+    author_color: string;
+    edited_timestamp: string | null;
+    timestamp: string;
+    tts: boolean;
+    mentions: any[];
+    mention_roles: any[];
+    mention_everyone: boolean;
+    embeds: any[];
+    attachments: any[];
+    type: number;
+    pinned: boolean;
+    author: User;
 }
 
 export type BasicChannel = Pick<Channel, "id" | "name" | "type">;
@@ -65,6 +95,15 @@ export type Commands = {
 
     [RPCEvents.GuildStatus]: {
         guild_id: Snowflake;
+    };
+    [RPCEvents.MessageCreate]: {
+        channel_id: Snowflake;
+    };
+    [RPCEvents.MessageUpdate]: {
+        channel_id: Snowflake;
+    };
+    [RPCEvents.MessageDelete]: {
+        channel_id: Snowflake;
     };
 };
 
@@ -99,7 +138,7 @@ export type Events = {
             cdn_host: string;
             environment: string;
         };
-        user?: User;
+        user?: BasicUser;
         v: 1;
     };
     [RPCEvents.Error]: {
@@ -112,6 +151,18 @@ export type Events = {
     };
     [RPCEvents.GuildCreate]: BasicGuild;
     [RPCEvents.ChannelCreate]: BasicChannel;
+    [RPCEvents.MessageCreate]: {
+        channel_id: Snowflake;
+        message: Message;
+    };
+    [RPCEvents.MessageUpdate]: {
+        channel_id: Snowflake;
+        message: Message;
+    };
+    [RPCEvents.MessageDelete]: {
+        channel_id: Snowflake;
+        message: Message;
+    };
 };
 
 export interface IPayload<T extends RPCCommands = RPCCommands, R extends RPCEvents | null = RPCEvents> {
