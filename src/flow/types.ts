@@ -33,7 +33,7 @@ export interface Init {
 export interface QueryResult {
     title: string;
     subtitle?: string;
-    icoPath?: string;
+    icoPath?: string | null;
     score?: number;
     jsonRPCAction?: {
         method: string;

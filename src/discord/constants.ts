@@ -60,4 +60,5 @@ export enum Scopes {
     IDENTIFY = "identify",
     RPC_NOTIFICATIONS_READ = "rpc.notifications.read",
     MESSAGES_READ = "messages.read",
+    DM_CHANNELS_READ = "dm_channels.read",
 }

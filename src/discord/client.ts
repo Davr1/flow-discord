@@ -39,8 +39,12 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
         }
 
         if (!this.#accessToken || !(await this.#authenticate())) {
-            await this.#authorize();
-            await this.#authenticate();
+            let success = (await this.#authorize()) && (await this.#authenticate());
+
+            if (!success) {
+                this.disconnect();
+                throw new Error("Failed to authorize or authenticate");
+            }
         }
 
         Logger.log(`Connected and authorized (token: ${this.#accessToken})`);
@@ -157,17 +161,23 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
         }
     }
 
-    async #authorize(): Promise<void> {
-        let data = await this.send(RPCCommands.Authorize, {
-            client_id: OAUTH2_CLIENT_ID,
-            scopes: this.scopes,
-        });
-        Logger.log(data);
+    async #authorize(): Promise<boolean> {
+        try {
+            let data = await this.send(RPCCommands.Authorize, {
+                client_id: OAUTH2_CLIENT_ID,
+                scopes: this.scopes,
+            });
+            Logger.log(data);
 
-        const headers = { method: "POST", body: JSON.stringify(data) };
-        let { access_token } = (await fetch(AUTH, headers).then((res) => res.json())) as { access_token: string };
+            const headers = { method: "POST", body: JSON.stringify(data) };
+            let { access_token } = (await fetch(AUTH, headers).then((res) => res.json())) as { access_token: string };
 
-        this.#accessToken = access_token;
+            this.#accessToken = access_token;
+            return true;
+        } catch (error) {
+            Logger.log(error);
+            return false;
+        }
     }
 
     async #authenticate(): Promise<boolean> {

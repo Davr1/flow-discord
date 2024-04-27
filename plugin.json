@@ -1,8 +1,8 @@
 {
     "ID": "890a6a95-5d36-4fab-bce1-b4c3f1239098",
-    "ActionKeyword": "x",
-    "Name": "stuff",
-    "Description": "stuff",
+    "ActionKeyword": "dis",
+    "Name": "Discord quick search",
+    "Description": "",
     "Author": "Davri",
     "Version": "0.0.2",
     "Language": "TypeScript_V2",
