@@ -1,7 +1,7 @@
 import { Cache, DiscordChannel, DiscordGuild } from "./cache";
 import { DiscordClient } from "./discord/client";
-import { ChannelType, RPCEvents, Scopes } from "./discord/constants";
-import { BasicChannel, BasicGuild } from "./discord/types";
+import { ChannelType, RPCCommands, RPCEvents, Scopes } from "./discord/constants";
+import { BasicChannel, BasicGuild, Channel, Event } from "./discord/types";
 import { FlowClient } from "./flow/client";
 import { Methods } from "./flow/constants";
 import { Init, Query, QueryResponse, QueryResult } from "./flow/types";
@@ -31,6 +31,7 @@ export class Plugin {
 
         this.#flow.onRequest("query", this.#queryHandler.bind(this));
         this.#flow.onRequest("reconnect", this.#reconnect.bind(this));
+        this.#flow.onRequest("switch", this.#switch.bind(this));
 
         await this.#reconnect().catch(Logger.log);
     }
@@ -106,6 +107,10 @@ export class Plugin {
                 title: guild.name,
                 icoPath: guild.icon,
                 channelType: null,
+                jsonRPCAction: {
+                    method: "switch",
+                    parameters: [guild.id.toString()],
+                },
             });
 
             const channels = await this.#cache.getChannels(guild.id);
@@ -116,6 +121,10 @@ export class Plugin {
                     subtitle: guild.name,
                     icoPath: guild.icon,
                     channelType: channel.type,
+                    jsonRPCAction: {
+                        method: "switch",
+                        parameters: [channel.id.toString(), channel.type.toString()],
+                    },
                 });
             }
         }
@@ -158,5 +167,28 @@ export class Plugin {
                   )
                 : this.#searchCache.slice(0, count)
         ).filter(Boolean);
+    }
+
+    async #switch(params: [id: `${number}`, channelType: `${ChannelType}`]) {
+        let type: ChannelType = Number(params[1]);
+
+        let promise: Promise<Channel> | null =
+            type === ChannelType.GUILD_VOICE
+                ? this.#discord.send(RPCCommands.SelectVoiceChannel, {
+                      channel_id: params[0],
+                      force: true,
+                      navigate: true,
+                  })
+                : this.#discord.send(RPCCommands.SelectTextChannel, {
+                      channel_id: params[0],
+                  });
+
+        await promise
+            ?.then(async () => {
+                await this.#flow.request(Methods.HideMainWindow);
+            })
+            .catch(async (err: Event[RPCEvents.Error]) => {
+                await this.#flow.request(Methods.ShowMsgError, { title: "An error occurred", subTitle: err.message });
+            });
     }
 }

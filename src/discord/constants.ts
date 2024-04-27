@@ -13,6 +13,9 @@ export enum RPCCommands {
     GetChannel = "GET_CHANNEL",
     GetChannels = "GET_CHANNELS",
 
+    SelectTextChannel = "SELECT_TEXT_CHANNEL",
+    SelectVoiceChannel = "SELECT_VOICE_CHANNEL",
+
     Subscribe = "SUBSCRIBE",
     Unsubscribe = "UNSUBSCRIBE",
 }

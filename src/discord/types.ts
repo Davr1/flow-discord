@@ -92,6 +92,16 @@ export type Command = {
     [RPCCommands.GetChannel]: {
         channel_id: Snowflake;
     };
+    [RPCCommands.SelectTextChannel]: {
+        channel_id: Snowflake;
+        timeout?: number;
+    };
+    [RPCCommands.SelectVoiceChannel]: {
+        channel_id: Snowflake;
+        force: boolean;
+        navigate: boolean;
+        timeout?: number;
+    };
 
     [RPCEvents.GuildStatus]: {
         guild_id: Snowflake;
@@ -123,6 +133,8 @@ export type CommandResponse = {
     [RPCCommands.GetGuild]: Guild;
     [RPCCommands.GetChannels]: { channels: BasicChannel[] };
     [RPCCommands.GetChannel]: Channel;
+    [RPCCommands.SelectTextChannel]: Channel;
+    [RPCCommands.SelectVoiceChannel]: Channel;
     [RPCCommands.Subscribe]: {
         evt: RPCEvents;
     };
