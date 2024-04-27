@@ -1,11 +1,11 @@
 import { OAUTH2_CLIENT_ID, RPCCommands, RPCEvents, ORIGIN, AUTH, Scopes } from "./constants";
 import { randomUUID } from "crypto";
 import WebSocket from "ws";
-import { Commands, EventCallbacks, ICommand, ICommandResponse, IEvent, IPayload } from "./types";
+import { Command, EventCallback, ICommand, ICommandResponse, IEvent, IPayload } from "./types";
 import { EventEmitter } from "stream";
 import TypedEventEmitter from "typed-emitter";
 
-type CustomEventEmitter = new () => TypedEventEmitter<EventCallbacks> & {
+type CustomEventEmitter = new () => TypedEventEmitter<EventCallback> & {
     emit: (event: RPCEvents, ...args: any[]) => boolean;
 };
 
@@ -81,17 +81,21 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
         this.connected = false;
     }
 
-    send<T extends RPCCommands, R extends RPCEvents | null = null>(
-        type: T,
-        args: R extends keyof Commands ? Commands[R] : T extends keyof Commands ? Commands[T] : Record<string, any>,
-        event?: R
-    ): Promise<ICommandResponse<T>> {
+    send<TCmd extends RPCCommands, TEvt extends RPCEvents | null = null>(
+        type: TCmd,
+        args: TEvt extends keyof Command
+            ? Command[TEvt]
+            : TCmd extends keyof Command
+            ? Command[TCmd]
+            : Record<string, any>,
+        event?: TEvt
+    ): Promise<ICommandResponse<TCmd>> {
         return new Promise((resolve, reject) => {
             if (!this.connected || !this.ready) reject("Client is not connected or ready");
 
             const nonce = randomUUID();
 
-            let command: ICommand<T, R> = {
+            let command: ICommand<TCmd, TEvt> = {
                 cmd: type,
                 nonce,
                 args,
@@ -102,34 +106,34 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
 
             let callback = (event: WebSocket.MessageEvent) => {
                 try {
-                    let data: IPayload<T> = JSON.parse(event.data.toString());
+                    let data: IPayload<TCmd> = JSON.parse(event.data.toString());
 
-                    if (data.nonce === nonce) {
-                        data.evt !== RPCEvents.Error
-                            ? resolve(data as ICommandResponse<T>)
-                            : reject(data as IEvent<T, RPCEvents.Error>);
+                    if (data.nonce !== nonce) return;
 
-                        this.socket!.removeEventListener("message", callback);
-                    }
+                    data.evt !== RPCEvents.Error
+                        ? resolve(data as ICommandResponse<TCmd>)
+                        : reject(data as IEvent<TCmd, RPCEvents.Error>);
+
+                    this.socket!.off("message", callback);
                 } catch (error) {
                     reject(error);
                 }
             };
 
-            this.socket!.addEventListener("message", callback);
+            this.socket!.on("message", callback);
         });
     }
 
-    subscribe<T extends RPCEvents>(
-        event: T,
-        args: T extends keyof Commands ? Commands[T] : Record<string, any>
+    subscribe<TEvt extends RPCEvents>(
+        event: TEvt,
+        args: TEvt extends keyof Command ? Command[TEvt] : Record<string, any>
     ): Promise<ICommandResponse<RPCCommands.Subscribe>> {
         return this.send(RPCCommands.Subscribe, args, event);
     }
 
-    unsubscribe<T extends RPCEvents>(
-        event: T,
-        args: T extends keyof Commands ? Commands[T] : Record<string, any>
+    unsubscribe<TEvt extends RPCEvents>(
+        event: TEvt,
+        args: TEvt extends keyof Command ? Command[TEvt] : Record<string, any>
     ): Promise<ICommandResponse<RPCCommands.Unsubscribe>> {
         return this.send(RPCCommands.Unsubscribe, args, event);
     }

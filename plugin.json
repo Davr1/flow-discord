@@ -5,7 +5,7 @@
     "Description": "stuff",
     "Author": "Davri",
     "Version": "0.0.2",
-    "Language": "TypeScript",
+    "Language": "TypeScript_V2",
     "ExecuteFileName": "./dist/main.js",
     "Website": "https://github.com/Joehoel/flow-launcher-plugin-template-node",
     "IcoPath": "./assets/npm.png"

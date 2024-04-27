@@ -74,7 +74,7 @@ export interface Message {
 
 export type BasicChannel = Pick<Channel, "id" | "name" | "type">;
 
-export type Commands = {
+export type Command = {
     [RPCCommands.Authorize]: {
         client_id: Snowflake;
         scopes: string[];
@@ -107,7 +107,7 @@ export type Commands = {
     };
 };
 
-export type CommandResponses = {
+export type CommandResponse = {
     [RPCCommands.Authorize]: {
         code: string;
     };
@@ -131,7 +131,7 @@ export type CommandResponses = {
     };
 };
 
-export type Events = {
+export type Event = {
     [RPCEvents.Ready]: {
         config: {
             api_endpoint: string;
@@ -165,30 +165,30 @@ export type Events = {
     };
 };
 
-export interface IPayload<T extends RPCCommands = RPCCommands, R extends RPCEvents | null = RPCEvents> {
-    cmd: T;
+export interface IPayload<TCmd extends RPCCommands = RPCCommands, TEvt extends RPCEvents | null = RPCEvents> {
+    cmd: TCmd;
     nonce?: string | null;
-    evt?: R;
+    evt?: TEvt;
     data?: Record<string, any> | null;
     args?: Record<string, any>;
 }
 
-export interface ICommand<T extends RPCCommands, R extends RPCEvents | null = null> extends IPayload<T, R> {
+export interface ICommand<TCmd extends RPCCommands, TEvt extends RPCEvents | null = null> extends IPayload<TCmd, TEvt> {
     nonce: string;
-    args: R extends keyof Commands ? Commands[R] : T extends keyof Commands ? Commands[T] : Record<string, any>;
+    args: TEvt extends keyof Command ? Command[TEvt] : TCmd extends keyof Command ? Command[TCmd] : Record<string, any>;
 }
 
-export interface ICommandResponse<T extends RPCCommands> extends IPayload<T, null> {
+export interface ICommandResponse<TCmd extends RPCCommands> extends IPayload<TCmd, null> {
     nonce: string;
-    data: T extends keyof CommandResponses ? CommandResponses[T] : null;
+    data: TCmd extends keyof CommandResponse ? CommandResponse[TCmd] : null;
 }
 
-export interface IEvent<T extends RPCCommands, R extends RPCEvents | null> extends IPayload<T, R> {
-    cmd: T;
-    evt: R;
-    data: R extends keyof Events ? Events[R] : null;
+export interface IEvent<TCmd extends RPCCommands, TEvt extends RPCEvents | null> extends IPayload<TCmd, TEvt> {
+    cmd: TCmd;
+    evt: TEvt;
+    data: TEvt extends keyof Event ? Event[TEvt] : null;
 }
 
-export type EventCallbacks = {
+export type EventCallback = {
     [K in RPCEvents]: (event: IEvent<RPCCommands.Dispatch, K>) => void;
 };
