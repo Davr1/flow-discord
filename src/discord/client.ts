@@ -1,9 +1,10 @@
-import { OAUTH2_CLIENT_ID, RPCCommands, RPCEvents, ORIGIN, AUTH, Scopes } from "./constants";
 import { randomUUID } from "crypto";
-import WebSocket from "ws";
-import { Command, EventCallback, ICommand, ICommandResponse, IEvent, IPayload } from "./types";
 import { EventEmitter } from "stream";
 import TypedEventEmitter from "typed-emitter";
+import WebSocket from "ws";
+import { Logger } from "../logger";
+import { AUTH, OAUTH2_CLIENT_ID, ORIGIN, RPCCommands, RPCEvents, Scopes } from "./constants";
+import { Command, EventCallback, ICommand, ICommandResponse, IEvent, IPayload } from "./types";
 
 type CustomEventEmitter = new () => TypedEventEmitter<EventCallback> & {
     emit: (event: RPCEvents, ...args: any[]) => boolean;
@@ -31,7 +32,7 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
             try {
                 await this.connect(tries);
             } catch (error) {
-                console.log(error);
+                Logger.log(error);
                 tries++;
                 await new Promise((resolve) => setTimeout(resolve, 200));
             }
@@ -42,15 +43,14 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
             await this.authenticate();
         }
 
-        console.log(this.accessToken);
-        console.log("Connected and authorized");
+        Logger.log(`Connected and authorized (token: ${this.accessToken})`);
     }
 
     private async connect(tries = 0): Promise<void> {
         const port = 6463 + (tries % 10);
         const url = `ws://localhost:${port}/?v=1&client_id=${OAUTH2_CLIENT_ID}`;
 
-        console.log(`Connecting to ${url} ...`);
+        Logger.log(`Connecting to ${url} ...`);
 
         return new Promise((resolve, reject) => {
             this.socket = Object.assign(new WebSocket(url, { origin: ORIGIN }), {
@@ -60,7 +60,7 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
                     reject("Connection closed");
                 },
                 onerror: (ev: ErrorEvent) => {
-                    console.log(ev.message);
+                    Logger.log(ev.message);
                     this.disconnect();
                     reject("Connection error");
                 },
@@ -68,6 +68,7 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
                     this.connected = true;
                 },
                 onmessage: (event: MessageEvent) => {
+                    Logger.log(event);
                     this.handleMessage(event);
                     if (this.ready) resolve();
                 },
@@ -89,7 +90,7 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
             ? Command[TCmd]
             : Record<string, any>,
         event?: TEvt
-    ): Promise<ICommandResponse<TCmd>> {
+    ): Promise<ICommandResponse<TCmd>["data"]> {
         return new Promise((resolve, reject) => {
             if (!this.connected || !this.ready) reject("Client is not connected or ready");
 
@@ -106,13 +107,13 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
 
             let callback = (event: WebSocket.MessageEvent) => {
                 try {
-                    let data: IPayload<TCmd> = JSON.parse(event.data.toString());
+                    let payload: IPayload<TCmd> = JSON.parse(event.toString());
 
-                    if (data.nonce !== nonce) return;
+                    if (payload.nonce !== nonce) return;
 
-                    data.evt !== RPCEvents.Error
-                        ? resolve(data as ICommandResponse<TCmd>)
-                        : reject(data as IEvent<TCmd, RPCEvents.Error>);
+                    payload.evt !== RPCEvents.Error
+                        ? resolve(payload.data as ICommandResponse<TCmd>["data"])
+                        : reject(payload.data as IEvent<TCmd, RPCEvents.Error>["data"]);
 
                     this.socket!.off("message", callback);
                 } catch (error) {
@@ -127,14 +128,14 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
     subscribe<TEvt extends RPCEvents>(
         event: TEvt,
         args: TEvt extends keyof Command ? Command[TEvt] : Record<string, any>
-    ): Promise<ICommandResponse<RPCCommands.Subscribe>> {
+    ): Promise<ICommandResponse<RPCCommands.Subscribe>["data"]> {
         return this.send(RPCCommands.Subscribe, args, event);
     }
 
     unsubscribe<TEvt extends RPCEvents>(
         event: TEvt,
         args: TEvt extends keyof Command ? Command[TEvt] : Record<string, any>
-    ): Promise<ICommandResponse<RPCCommands.Unsubscribe>> {
+    ): Promise<ICommandResponse<RPCCommands.Unsubscribe>["data"]> {
         return this.send(RPCCommands.Unsubscribe, args, event);
     }
 
@@ -149,18 +150,19 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
             }
 
             if (payload.evt === RPCEvents.Error) {
-                console.log(payload.data);
+                Logger.log(payload.data);
             }
         } catch (error) {
-            console.log(error);
+            Logger.log(error);
         }
     }
 
     private async authorize(): Promise<void> {
-        let { data } = await this.send(RPCCommands.Authorize, {
+        let data = await this.send(RPCCommands.Authorize, {
             client_id: OAUTH2_CLIENT_ID,
             scopes: this.scopes,
         });
+        Logger.log(data);
 
         const headers = { method: "POST", body: JSON.stringify(data) };
         let { access_token } = (await fetch(AUTH, headers).then((res) => res.json())) as { access_token: string };
@@ -170,11 +172,11 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
 
     private async authenticate(): Promise<boolean> {
         try {
-            let { data } = await this.send(RPCCommands.Authenticate, {
+            let { user } = await this.send(RPCCommands.Authenticate, {
                 access_token: this.accessToken!,
             });
 
-            console.log(`Logged in as ${data.user.username}`);
+            Logger.log(`Logged in as ${user.username}`);
 
             return true;
         } catch {

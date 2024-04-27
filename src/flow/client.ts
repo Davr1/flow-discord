@@ -4,34 +4,32 @@ import {
     StreamMessageWriter,
     createMessageConnection,
 } from "vscode-jsonrpc/node";
-import { Command, CommandResponse, Init, Query, QueryResult } from "./types";
+import { Logger } from "../logger";
 import { Methods } from "./constants";
-
-type QueryHandler = (query: Query) => {
-    result: QueryResult[];
-};
+import { Command, CommandResponse, Init } from "./types";
 
 export class FlowClient {
-    private queryHandler: QueryHandler;
     private reader: StreamMessageReader;
     private writer: StreamMessageWriter;
+    config: Init | null = null;
     connection: MessageConnection | null = null;
     connected: boolean = false;
-    ready: boolean = false;
+    get ready(): boolean {
+        return Boolean(this.config);
+    }
 
-    constructor(queryHandler: QueryHandler) {
-        this.queryHandler = queryHandler;
-
+    constructor() {
         this.reader = new StreamMessageReader(process.stdin);
         this.writer = new StreamMessageWriter(process.stdout);
     }
 
-    async tryConnect(): Promise<void> {
+    async tryConnect(): Promise<Init> {
         if (!this.connected) {
             await this.connect();
         }
 
-        console.log("Connected");
+        Logger.log("Connected");
+        return this.config!;
     }
 
     private async connect(): Promise<Init> {
@@ -40,20 +38,20 @@ export class FlowClient {
         this.connection = createMessageConnection(this.reader, this.writer);
 
         this.connection.onClose(() => {
-            this.ready = false;
             this.connected = false;
+            this.config = null;
             reject("Connection closed");
         });
         this.connection.onError((error) => {
-            console.log(error[0]);
+            Logger.log(error);
             this.disconnect();
             reject("Connection error");
         });
         this.connection.onRequest("initialize", (config: Init) => {
-            this.ready = true;
+            Logger.log(config);
+            this.config = config;
             resolve(config);
         });
-        this.connection.onRequest("query", this.queryHandler);
 
         this.connection.listen();
         this.connected = true;
@@ -66,7 +64,7 @@ export class FlowClient {
             this.connection.dispose();
             this.connection = null;
         }
-        this.ready = false;
+        this.config = null;
         this.connected = false;
     }
 
@@ -84,5 +82,11 @@ export class FlowClient {
                 .then(resolve)
                 .catch(reject);
         });
+    }
+
+    onRequest<T, R>(method: string, handler: (params: T) => R): void {
+        if (!this.connected || !this.ready) throw new Error("Client is not connected or ready");
+
+        this.connection!.onRequest(method, handler);
     }
 }

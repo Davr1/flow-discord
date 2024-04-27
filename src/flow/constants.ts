@@ -15,6 +15,8 @@ export enum Methods {
     GetTranslation = "GetTranslation",
     GetAllPlugins = "GetAllPlugins",
     FuzzySearch = "FuzzySearch",
+    LoadSettingJsonStorage = "LoadSettingJsonStorage",
+    SaveSettingJsonStorage = "SaveSettingJsonStorage",
     OpenDirectory = "OpenDirectory",
     OpenUrl = "OpenUrl",
     OpenAppUri = "OpenAppUri",

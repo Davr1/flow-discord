@@ -35,6 +35,14 @@ export interface QueryResult {
     subtitle?: string;
     icoPath?: string;
     score?: number;
+    jsonRPCAction?: {
+        method: string;
+        parameters?: string[];
+    };
+}
+
+export interface QueryResponse {
+    result: QueryResult[];
 }
 
 export type Command = {
