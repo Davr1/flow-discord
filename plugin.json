@@ -4,7 +4,7 @@
     "Name": "Discord quick search",
     "Description": "",
     "Author": "Davri",
-    "Version": "0.0.2",
+    "Version": "0.0.3",
     "Language": "TypeScript_V2",
     "ExecuteFileName": "./dist/main.js",
     "Website": "https://github.com/Joehoel/flow-launcher-plugin-template-node",
