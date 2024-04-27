@@ -1,4 +1,4 @@
-import { ChannelType, RPCCommands, RPCEvents, RPCErrors } from "./constants";
+import { ChannelType, RPCCommands, RPCErrors, RPCEvents } from "./constants";
 
 export type Snowflake = `${number}` | number;
 
@@ -190,5 +190,5 @@ export interface IEvent<TCmd extends RPCCommands, TEvt extends RPCEvents | null>
 }
 
 export type EventCallback = {
-    [K in RPCEvents]: (event: IEvent<RPCCommands.Dispatch, K>) => void;
+    [K in RPCEvents]: (event: IEvent<RPCCommands.Dispatch, K>["data"]) => void;
 };

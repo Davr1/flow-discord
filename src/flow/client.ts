@@ -9,8 +9,8 @@ import { Methods } from "./constants";
 import { Command, CommandResponse, Init } from "./types";
 
 export class FlowClient {
-    private reader: StreamMessageReader;
-    private writer: StreamMessageWriter;
+    #reader: StreamMessageReader;
+    #writer: StreamMessageWriter;
     config: Init | null = null;
     connection: MessageConnection | null = null;
     connected: boolean = false;
@@ -19,23 +19,23 @@ export class FlowClient {
     }
 
     constructor() {
-        this.reader = new StreamMessageReader(process.stdin);
-        this.writer = new StreamMessageWriter(process.stdout);
+        this.#reader = new StreamMessageReader(process.stdin);
+        this.#writer = new StreamMessageWriter(process.stdout);
     }
 
     async tryConnect(): Promise<Init> {
         if (!this.connected) {
-            await this.connect();
+            await this.#connect();
         }
 
         Logger.log("Connected");
         return this.config!;
     }
 
-    private async connect(): Promise<Init> {
+    async #connect(): Promise<Init> {
         const { promise, resolve, reject } = Promise.withResolvers<Init>();
 
-        this.connection = createMessageConnection(this.reader, this.writer);
+        this.connection = createMessageConnection(this.#reader, this.#writer);
 
         this.connection.onClose(() => {
             this.connected = false;

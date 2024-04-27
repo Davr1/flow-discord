@@ -1,65 +1,71 @@
+import { Cache, DiscordChannel, DiscordGuild } from "./cache";
 import { DiscordClient } from "./discord/client";
-import { RPCCommands, Scopes } from "./discord/constants";
-import { BasicChannel, BasicGuild } from "./discord/types";
+import { RPCEvents, Scopes } from "./discord/constants";
 import { FlowClient } from "./flow/client";
 import { Init, Query, QueryResponse } from "./flow/types";
 
 export class Plugin {
-    private discord: DiscordClient;
-    private flow: FlowClient;
+    #discord: DiscordClient;
+    #flow: FlowClient;
+    #cache: Cache;
     config: Init | null = null;
-    guilds: BasicGuild[] = [];
-    channels: BasicChannel[] = [];
 
     constructor() {
-        this.flow = new FlowClient();
-        this.discord = new DiscordClient(null, [Scopes.RPC, Scopes.MESSAGES_READ]);
+        this.#flow = new FlowClient();
+        this.#discord = new DiscordClient(null, [Scopes.RPC, Scopes.MESSAGES_READ]);
+
+        this.#cache = new Cache(this.#discord);
     }
 
     async init(): Promise<void> {
-        this.config = await this.flow.tryConnect();
-        await this.discord.tryConnect();
+        this.config = await this.#flow.tryConnect();
 
-        this.flow.onRequest("query", this.queryHandler.bind(this));
-        this.flow.onRequest("owo", this.loadServers.bind(this));
+        this.#flow.onRequest("query", this.#queryHandler.bind(this));
+        this.#flow.onRequest("reconnect", this.#reconnect.bind(this));
+
+        await this.#reconnect();
     }
 
-    async loadServers() {
-        let { guilds } = await this.discord.send(RPCCommands.GetGuilds, {});
-        this.guilds = guilds;
+    async #reconnect(): Promise<void> {
+        const { promise, resolve, reject } = Promise.withResolvers<void>();
 
-        for (const guild of this.guilds) {
-            let { channels } = await this.discord.send(RPCCommands.GetChannels, { guild_id: guild.id });
-            this.channels.push(...channels);
+        await this.#discord.tryConnect();
+
+        if (this.#discord.connected && this.#discord.ready) {
+            this.#discord.subscribe(RPCEvents.GuildCreate, {});
+            this.#discord.subscribe(RPCEvents.ChannelCreate, {});
+
+            this.#discord.on(RPCEvents.GuildCreate, async (guild) => {
+                this.#cache.addGuild(DiscordGuild.fromBasicGuild(guild));
+            });
+            this.#discord.on(RPCEvents.ChannelCreate, async ({ id }) => {
+                let channel = await this.#cache.getFullChannel(id);
+                this.#cache.addChannel(DiscordChannel.fromChannel(channel!));
+            });
+
+            resolve();
+        } else {
+            reject();
         }
+
+        return promise;
     }
 
-    private queryHandler(query: Query): QueryResponse {
-        if (this.guilds.length === 0)
+    #queryHandler(query: Query): QueryResponse {
+        if (!this.#discord.connected || !this.#discord.ready)
             return {
                 result: [
                     {
-                        title: query.search + "x" + this.flow.connected,
+                        title: "Connect to discord",
                         jsonRPCAction: {
-                            method: "owo",
-                            parameters: ["a"],
+                            method: "reconnect",
                         },
                     },
                 ],
             };
-        else
-            return {
-                result: [
-                    ...this.guilds.map((g) => ({
-                        title: g.name,
-                        subtitle: g.id.toString(),
-                        icoPath: "",
-                    })),
-                    ...this.channels.map((c) => ({
-                        title: c.name,
-                        subtitle: c.id.toString(),
-                    })),
-                ],
-            };
+
+        return {
+            result: [],
+        };
     }
 }

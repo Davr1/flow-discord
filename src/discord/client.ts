@@ -11,15 +11,15 @@ type CustomEventEmitter = new () => TypedEventEmitter<EventCallback> & {
 };
 
 export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
-    private socket: WebSocket | null = null;
-    private accessToken: string | null;
+    #socket: WebSocket | null = null;
+    #accessToken: string | null;
     connected: boolean = false;
     ready: boolean = false;
     scopes: Scopes[];
 
     constructor(token: string | null = null, scopes: Scopes[] = []) {
         super();
-        this.accessToken = token;
+        this.#accessToken = token;
         this.scopes = scopes;
     }
 
@@ -30,7 +30,7 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
             if (tries >= 20) return;
 
             try {
-                await this.connect(tries);
+                await this.#connect(tries);
             } catch (error) {
                 Logger.log(error);
                 tries++;
@@ -38,22 +38,22 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
             }
         }
 
-        if (!this.accessToken || !(await this.authenticate())) {
-            await this.authorize();
-            await this.authenticate();
+        if (!this.#accessToken || !(await this.#authenticate())) {
+            await this.#authorize();
+            await this.#authenticate();
         }
 
-        Logger.log(`Connected and authorized (token: ${this.accessToken})`);
+        Logger.log(`Connected and authorized (token: ${this.#accessToken})`);
     }
 
-    private async connect(tries = 0): Promise<void> {
+    async #connect(tries = 0): Promise<void> {
         const port = 6463 + (tries % 10);
         const url = `ws://localhost:${port}/?v=1&client_id=${OAUTH2_CLIENT_ID}`;
 
         Logger.log(`Connecting to ${url} ...`);
 
         return new Promise((resolve, reject) => {
-            this.socket = Object.assign(new WebSocket(url, { origin: ORIGIN }), {
+            this.#socket = Object.assign(new WebSocket(url, { origin: ORIGIN }), {
                 onclose: () => {
                     this.ready = false;
                     this.connected = false;
@@ -69,7 +69,7 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
                 },
                 onmessage: (event: MessageEvent) => {
                     Logger.log(event);
-                    this.handleMessage(event);
+                    this.#handleMessage(event);
                     if (this.ready) resolve();
                 },
             });
@@ -77,7 +77,7 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
     }
 
     disconnect(): void {
-        this.socket?.close();
+        this.#socket?.close();
         this.ready = false;
         this.connected = false;
     }
@@ -103,7 +103,7 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
             };
             if (event) command.evt = event;
 
-            this.socket!.send(JSON.stringify(command));
+            this.#socket!.send(JSON.stringify(command));
 
             let callback = (event: WebSocket.MessageEvent) => {
                 try {
@@ -115,13 +115,13 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
                         ? resolve(payload.data as ICommandResponse<TCmd>["data"])
                         : reject(payload.data as IEvent<TCmd, RPCEvents.Error>["data"]);
 
-                    this.socket!.off("message", callback);
+                    this.#socket!.off("message", callback);
                 } catch (error) {
                     reject(error);
                 }
             };
 
-            this.socket!.on("message", callback);
+            this.#socket!.on("message", callback);
         });
     }
 
@@ -139,12 +139,12 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
         return this.send(RPCCommands.Unsubscribe, args, event);
     }
 
-    private handleMessage(event: MessageEvent): void {
+    #handleMessage(event: MessageEvent): void {
         try {
             let payload: IPayload = JSON.parse(event.data);
 
             if (payload.cmd === RPCCommands.Dispatch) {
-                this.emit(payload.evt!, payload);
+                this.emit(payload.evt!, payload.data);
 
                 if (payload.evt === RPCEvents.Ready) this.ready = true;
             }
@@ -157,7 +157,7 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
         }
     }
 
-    private async authorize(): Promise<void> {
+    async #authorize(): Promise<void> {
         let data = await this.send(RPCCommands.Authorize, {
             client_id: OAUTH2_CLIENT_ID,
             scopes: this.scopes,
@@ -167,13 +167,13 @@ export class DiscordClient extends (EventEmitter as CustomEventEmitter) {
         const headers = { method: "POST", body: JSON.stringify(data) };
         let { access_token } = (await fetch(AUTH, headers).then((res) => res.json())) as { access_token: string };
 
-        this.accessToken = access_token;
+        this.#accessToken = access_token;
     }
 
-    private async authenticate(): Promise<boolean> {
+    async #authenticate(): Promise<boolean> {
         try {
             let { user } = await this.send(RPCCommands.Authenticate, {
-                access_token: this.accessToken!,
+                access_token: this.#accessToken!,
             });
 
             Logger.log(`Logged in as ${user.username}`);
