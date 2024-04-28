@@ -26,12 +26,12 @@ jobs:
               run: |
                   npm install
                   npm run build
-                  zip -r DiscordSearch-${{steps.version.outputs.prop}}.zip dist assets plugin.json LICENCE.md
+                  zip -r DiscordSearch.zip dist assets plugin.json LICENCE.md
             - name: Publish
-              uses: softprops/action-gh-release@v2
+              uses: actions/upload-artifact@v4
               with:
-                  files: "DiscordSearch-${{steps.version.outputs.prop}}.zip"
-                  tag_name: "v${{steps.version.outputs.prop}}"
+                  name: DiscordSearch
+                  path: DiscordSearch.zip
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

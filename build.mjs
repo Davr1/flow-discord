@@ -6,4 +6,5 @@ await esbuild.build({
     outfile: "dist/main.js",
     platform: "node",
     minify: true,
+    target: "ES2018",
 });

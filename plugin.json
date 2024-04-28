@@ -4,7 +4,7 @@
     "Name": "Discord Quick Search",
     "Description": "Search for channels and servers",
     "Author": "Davri",
-    "Version": "0.1.0",
+    "Version": "0.1.1",
     "Language": "TypeScript_V2",
     "ExecuteFileName": "./dist/main.js",
     "Website": "https://github.com/Davr1/flow-discord",
