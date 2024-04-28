@@ -15,8 +15,6 @@
   },
   "dependencies": {
     "@open-rpc/client-js": "^1.8.1",
-    "flow-launcher-helper": "^2.2.0",
-    "open": "^8.4.2",
     "ts-node": "^10.9.2",
     "vscode-jsonrpc": "^8.2.0",
     "ws": "^8.16.0"
