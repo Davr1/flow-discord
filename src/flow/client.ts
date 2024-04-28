@@ -33,30 +33,28 @@ export class FlowClient {
     }
 
     async #connect(): Promise<Init> {
-        const { promise, resolve, reject } = Promise.withResolvers<Init>();
+        return new Promise((resolve, reject) => {
+            this.connection = createMessageConnection(this.#reader, this.#writer);
 
-        this.connection = createMessageConnection(this.#reader, this.#writer);
+            this.connection.onClose(() => {
+                this.connected = false;
+                this.config = null;
+                reject("Connection closed");
+            });
+            this.connection.onError((error) => {
+                Logger.log(error);
+                this.disconnect();
+                reject("Connection error");
+            });
+            this.connection.onRequest("initialize", (config: Init) => {
+                Logger.log(config);
+                this.config = config;
+                resolve(config);
+            });
 
-        this.connection.onClose(() => {
-            this.connected = false;
-            this.config = null;
-            reject("Connection closed");
+            this.connection.listen();
+            this.connected = true;
         });
-        this.connection.onError((error) => {
-            Logger.log(error);
-            this.disconnect();
-            reject("Connection error");
-        });
-        this.connection.onRequest("initialize", (config: Init) => {
-            Logger.log(config);
-            this.config = config;
-            resolve(config);
-        });
-
-        this.connection.listen();
-        this.connected = true;
-
-        return promise;
     }
 
     disconnect(): void {

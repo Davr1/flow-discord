@@ -35,9 +35,7 @@ export class Plugin {
     }
 
     async #reconnect(): Promise<void> {
-        const { promise, resolve, reject } = Promise.withResolvers<void>();
-
-        await this.#discord.tryConnect().catch(reject);
+        await this.#discord.tryConnect();
 
         if (this.#discord.connected && this.#discord.ready) {
             await this.#discord.subscribe(RPCEvents.GuildCreate, {});
@@ -53,12 +51,10 @@ export class Plugin {
                 subTitle: "You can now search for guilds and channels",
             });
 
-            resolve();
+            return;
         } else {
-            reject();
+            throw new Error("Failed to connect to discord");
         }
-
-        return promise;
     }
 
     async #handleGuildCreate(guild: BasicGuild): Promise<void> {
