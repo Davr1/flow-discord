@@ -1,22 +1,22 @@
 {
-  "name": "flow-launcher-plugin-template-node",
-  "description": "Flow Launcher plugin template for Node.js",
-  "main": "./dist/main.js",
-  "scripts": {
-    "dev": "tsnd src/main.ts",
-    "build": "tsc"
-  },
-  "devDependencies": {
-    "@types/node": "^18.19.31",
-    "@types/ws": "^8.5.10",
-    "ts-node-dev": "^2.0.0",
-    "typed-emitter": "^2.1.0",
-    "typescript": "^5.4.5"
-  },
-  "dependencies": {
-    "@open-rpc/client-js": "^1.8.1",
-    "ts-node": "^10.9.2",
-    "vscode-jsonrpc": "^8.2.0",
-    "ws": "^8.16.0"
-  }
+    "name": "flow-discord",
+    "description": "Discord quick search plugin for Flow Launcher",
+    "main": "./dist/main.js",
+    "scripts": {
+        "dev": "tsnd src/main.ts",
+        "build": "tsc"
+    },
+    "devDependencies": {
+        "@types/node": "^18.19.31",
+        "@types/ws": "^8.5.10",
+        "ts-node-dev": "^2.0.0",
+        "typed-emitter": "^2.1.0",
+        "typescript": "^5.4.5"
+    },
+    "dependencies": {
+        "@open-rpc/client-js": "^1.8.1",
+        "ts-node": "^10.9.2",
+        "vscode-jsonrpc": "^8.2.0",
+        "ws": "^8.16.0"
+    }
 }
