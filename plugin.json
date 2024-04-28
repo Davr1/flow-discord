@@ -1,12 +1,12 @@
 {
-    "ID": "890a6a95-5d36-4fab-bce1-b4c3f1239098",
+    "ID": "f7ecc1ca-1805-482d-9b12-49b683aea110",
     "ActionKeyword": "dis",
     "Name": "Discord Quick Search",
-    "Description": "",
+    "Description": "Search for channels and servers",
     "Author": "Davri",
     "Version": "0.1.0",
     "Language": "TypeScript_V2",
     "ExecuteFileName": "./dist/main.js",
     "Website": "https://github.com/Davr1/flow-discord",
-    "IcoPath": "./assets/npm.png"
+    "IcoPath": "./assets/icon.png"
 }
