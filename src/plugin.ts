@@ -58,7 +58,6 @@ export class Plugin {
             reject();
         }
 
-        Logger.log(this);
         return promise;
     }
 
@@ -156,10 +155,7 @@ export class Plugin {
             query[0] = query[0].slice(1);
         }
 
-        Logger.log(query);
         let guild = Plugin.#getFilter(/guild:(?<id>\d{16,})/i, query)?.groups?.id as Snowflake | undefined;
-        Logger.log(query);
-        Logger.log(guild);
 
         const fullQuery = query.filter(Boolean).join(" ");
 
