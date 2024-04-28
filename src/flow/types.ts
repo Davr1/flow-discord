@@ -34,8 +34,14 @@ export interface QueryResult {
     title: string;
     subtitle?: string;
     icoPath?: string | null;
+    titleHighlightData?: number[];
+    titleTooltip?: string;
+    subtitleTooltip?: string;
+    copyText?: string;
     score?: number;
+    contextData?: any;
     jsonRPCAction?: {
+        id?: number;
         method: string;
         parameters?: string[];
     };
@@ -43,6 +49,8 @@ export interface QueryResult {
 
 export interface QueryResponse {
     result: QueryResult[];
+    settingsChanges?: Record<string, any>;
+    debugMessage?: string;
 }
 
 export type Command = {
@@ -89,9 +97,6 @@ export type Command = {
     [Methods.SetGameMode]: {
         value: boolean;
     };
-    [Methods.ReQuery]: {
-        reselect?: boolean;
-    };
 };
 
 export type CommandResponse = {
@@ -104,7 +109,7 @@ export type CommandResponse = {
         success: boolean;
         score: number;
         rawScore: number;
-        matchData: number[];
+        matchData: number[] | null;
         searchPrecision: 0 | 20 | 50;
     };
 };

@@ -6,7 +6,7 @@ import {
 } from "vscode-jsonrpc/node";
 import { Logger } from "../logger";
 import { Methods } from "./constants";
-import { Command, CommandResponse, Init } from "./types";
+import { Command, CommandResponse, Init, Query, QueryResponse } from "./types";
 
 export class FlowClient {
     #reader: StreamMessageReader;
@@ -84,7 +84,10 @@ export class FlowClient {
         });
     }
 
-    onRequest<T, R>(method: string, handler: (params: T) => R): void {
+    onRequest<T extends string>(
+        method: T,
+        handler: (query: T extends "query" ? Query : any) => Promise<QueryResponse | void>
+    ): void {
         if (!this.connected || !this.ready) throw new Error("Client is not connected or ready");
 
         this.connection!.onRequest(method, handler);

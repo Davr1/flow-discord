@@ -1,4 +1,5 @@
 export const OAUTH2_CLIENT_ID = "207646673902501888";
+export const DISCORD = "https://discord.com";
 export const ORIGIN = "https://streamkit.discord.com";
 export const AUTH = `${ORIGIN}/overlay/token`;
 
@@ -56,6 +57,15 @@ export enum ChannelType {
     DM = 1,
     GUILD_VOICE = 2,
     GROUP_DM = 3,
+    GUILD_CATEGORY = 4,
+    GUILD_NEWS = 5,
+    NEWS_THREAD = 10,
+    PUBLIC_THREAD = 11,
+    PRIVATE_THREAD = 12,
+    GUILD_STAGE_VOICE = 13,
+    GUILD_DIRECTORY = 14,
+    GUILD_FORUM = 15,
+    GUILD_MEDIA = 16,
 }
 
 export enum Scopes {

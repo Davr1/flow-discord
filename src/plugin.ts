@@ -1,21 +1,18 @@
 import { Cache, DiscordChannel, DiscordGuild } from "./cache";
 import { DiscordClient } from "./discord/client";
-import { ChannelType, RPCCommands, RPCEvents, Scopes } from "./discord/constants";
-import { BasicChannel, BasicGuild, Channel, Event } from "./discord/types";
+import { ChannelType, DISCORD, RPCCommands, RPCEvents, Scopes } from "./discord/constants";
+import { BasicChannel, BasicGuild, Channel, Event, Snowflake } from "./discord/types";
 import { FlowClient } from "./flow/client";
 import { Methods } from "./flow/constants";
-import { Init, Query, QueryResponse, QueryResult } from "./flow/types";
+import { CommandResponse, Init, Query, QueryResponse, QueryResult } from "./flow/types";
 import { Logger } from "./logger";
-
-interface SearchResult extends QueryResult {
-    channelType: ChannelType | null;
-}
 
 export class Plugin {
     #discord: DiscordClient;
     #flow: FlowClient;
     #cache: Cache;
-    #searchCache: SearchResult[] = [];
+    #cached: boolean = false;
+    #searchCache: QueryResult[] = [];
 
     config: Init | null = null;
 
@@ -26,12 +23,13 @@ export class Plugin {
         this.#cache = new Cache(this.#discord);
     }
 
-    async init(): Promise<void> {
+    async run(): Promise<void> {
         this.config = await this.#flow.tryConnect();
 
         this.#flow.onRequest("query", this.#queryHandler.bind(this));
         this.#flow.onRequest("reconnect", this.#reconnect.bind(this));
         this.#flow.onRequest("switch", this.#switch.bind(this));
+        this.#flow.onRequest("filter_guild", this.#filterGuild.bind(this));
 
         await this.#reconnect().catch(Logger.log);
     }
@@ -78,7 +76,7 @@ export class Plugin {
         await this.#resetSearchCache();
     }
 
-    #queryHandler(query: Query): QueryResponse {
+    async #queryHandler(query: Query): Promise<QueryResponse> {
         Logger.log(query);
         if (!this.#discord.ready)
             return {
@@ -92,8 +90,17 @@ export class Plugin {
                 ],
             };
 
+        if (!this.#cached)
+            return {
+                result: [
+                    {
+                        title: "Loading data...",
+                    },
+                ],
+            };
+
         return {
-            result: this.#getSearchResults(query.searchTerms),
+            result: await this.#getSearchResults(query.searchTerms),
         };
     }
 
@@ -106,9 +113,10 @@ export class Plugin {
             this.#searchCache.push({
                 title: guild.name,
                 icoPath: guild.icon,
-                channelType: null,
+                contextData: { ...guild, channels: [] },
+                copyText: `${DISCORD}/channels/${guild.id}`,
                 jsonRPCAction: {
-                    method: "switch",
+                    method: "filter_guild",
                     parameters: [guild.id.toString()],
                 },
             });
@@ -117,10 +125,11 @@ export class Plugin {
 
             for (const [_, channel] of channels!) {
                 this.#searchCache.push({
-                    title: channel.name,
+                    title: `#${channel.name}`,
                     subtitle: guild.name,
                     icoPath: guild.icon,
-                    channelType: channel.type,
+                    contextData: { ...channel, guild: channel.guild.id },
+                    copyText: `${DISCORD}/channels/${guild.id}/${channel.id}`,
                     jsonRPCAction: {
                         method: "switch",
                         parameters: [channel.id.toString(), channel.type.toString()],
@@ -128,59 +137,88 @@ export class Plugin {
                 });
             }
         }
+
+        this.#cached = true;
     }
 
-    *#search(query: string[]): Generator<QueryResult> {
+    static #filterMap: Partial<Record<ChannelType, string>> = {
+        [ChannelType.DM]: "@",
+        [ChannelType.GROUP_DM]: "@",
+        [ChannelType.GUILD_STAGE_VOICE]: "!",
+        [ChannelType.GUILD_VOICE]: "!",
+    };
+
+    async *#search(query: string[]): AsyncGenerator<QueryResult> {
         let filter: string | null = null;
 
-        if (["#", "!", "@"].includes(query[0]?.[0])) {
+        if (["#", "!", "@", "*"].includes(query[0]?.[0])) {
             filter = query[0][0];
             query[0] = query[0].slice(1);
         }
 
+        Logger.log(query);
+        let guild = Plugin.#getFilter(/guild:(?<id>\d{16,})/i, query)?.groups?.id as Snowflake | undefined;
+        Logger.log(query);
+        Logger.log(guild);
+
+        const fullQuery = query.filter(Boolean).join(" ");
+
         for (const result of this.#searchCache) {
-            let { title, subtitle, channelType: type } = result;
+            const { title, subtitle, contextData: context } = result;
+            const type: ChannelType | null = context.type;
+            const isGuild = context.channels && !type;
 
-            if (filter === "#" && type !== ChannelType.GUILD_TEXT) continue;
-            if (filter === "!" && type !== ChannelType.GUILD_VOICE) continue;
-            if (filter === "@" && type !== ChannelType.DM && type !== ChannelType.GROUP_DM) continue;
+            if (guild && (isGuild || context.guild !== guild)) continue;
+            if (filter && filter !== (isGuild ? "*" : Plugin.#filterMap[type!] ?? "#")) continue;
 
-            if (
-                query.some((q) => title.toLowerCase().includes(q)) ||
-                (result.subtitle && query.some((q) => subtitle!.toLowerCase().includes(q)))
-            )
+            if (!fullQuery) {
                 yield result;
+                continue;
+            }
+
+            const matchTitle = await this.#fuzzyMatch(fullQuery, title);
+            if (matchTitle.success) {
+                yield { ...result, titleHighlightData: matchTitle.matchData!, score: matchTitle.score };
+                continue;
+            }
+
+            if (!subtitle) continue;
+
+            const matchSubtitle = await this.#fuzzyMatch(fullQuery, subtitle);
+            if (matchSubtitle.success) {
+                yield { ...result, score: (matchSubtitle.score / 2) | 0 };
+            }
         }
     }
 
-    #getSearchResults(query: string[], count: number = 100): QueryResult[] {
+    async #getSearchResults(query: string[], count: number = 50): Promise<QueryResult[]> {
         query = query.map((q) => q.trim().toLowerCase()).filter(Boolean);
 
-        return (
-            query.length
-                ? Array.from(
-                      { length: count },
-                      function (this: Generator<QueryResult>) {
-                          return this.next().value;
-                      },
-                      this.#search(query)
-                  )
-                : this.#searchCache.slice(0, count)
-        ).filter(Boolean);
+        if (!query.length) return this.#searchCache.filter((item) => item.contextData.channels);
+
+        const results = [];
+
+        for await (const result of this.#search(query)) {
+            results.push(result);
+            if (results.length >= count) break;
+        }
+
+        return results;
     }
 
-    async #switch(params: [id: `${number}`, channelType: `${ChannelType}`]) {
-        let type: ChannelType = Number(params[1]);
+    async #switch(params: [id: Snowflake, channelType: `${ChannelType}`]): Promise<void> {
+        const id = params[0];
+        const type = Number(params[1]);
 
         let promise: Promise<Channel> | null =
-            type === ChannelType.GUILD_VOICE
+            type === ChannelType.GUILD_VOICE || type === ChannelType.GUILD_STAGE_VOICE
                 ? this.#discord.send(RPCCommands.SelectVoiceChannel, {
-                      channel_id: params[0],
+                      channel_id: id,
                       force: true,
                       navigate: true,
                   })
                 : this.#discord.send(RPCCommands.SelectTextChannel, {
-                      channel_id: params[0],
+                      channel_id: id,
                   });
 
         await promise
@@ -190,5 +228,25 @@ export class Plugin {
             .catch(async (err: Event[RPCEvents.Error]) => {
                 await this.#flow.request(Methods.ShowMsgError, { title: "An error occurred", subTitle: err.message });
             });
+    }
+
+    async #filterGuild(params: [id: Snowflake]): Promise<void> {
+        const id = params[0];
+        await this.#flow.request(Methods.ChangeQuery, {
+            query: `${this.config?.currentPluginMetadata.actionKeyword} guild:${id}`,
+        });
+    }
+
+    async #fuzzyMatch(query: string, stringToCompare: string): Promise<CommandResponse[Methods.FuzzySearch]> {
+        return await this.#flow.request(Methods.FuzzySearch, { query, stringToCompare });
+    }
+
+    static #getFilter(regex: RegExp, query: string[]): RegExpMatchArray | null {
+        const filter = query.map(regex.exec.bind(regex));
+        const index = filter.findIndex(Boolean);
+        if (index === -1) return null;
+
+        query.splice(index, 1);
+        return filter[index]!;
     }
 }

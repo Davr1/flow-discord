@@ -22,5 +22,4 @@ export enum Methods {
     OpenAppUri = "OpenAppUri",
     ToggleGameMode = "ToggleGameMode",
     SetGameMode = "SetGameMode",
-    ReQuery = "ReQuery",
 }
