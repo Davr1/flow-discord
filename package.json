@@ -4,11 +4,12 @@
     "main": "./dist/main.js",
     "scripts": {
         "dev": "tsnd src/main.ts",
-        "build": "tsc"
+        "build": "node build.mjs"
     },
     "devDependencies": {
         "@types/node": "^18.19.31",
         "@types/ws": "^8.5.10",
+        "esbuild": "0.20.2",
         "ts-node-dev": "^2.0.0",
         "typed-emitter": "^2.1.0",
         "typescript": "^5.4.5"
