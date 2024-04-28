@@ -26,8 +26,7 @@ jobs:
               run: |
                   npm install
                   npm run build
-                  rm -rf node_modules src
-                  zip -r DiscordSearch-${{steps.version.outputs.prop}}.zip . -x '*.git*'
+                  zip -r DiscordSearch-${{steps.version.outputs.prop}}.zip dist assets plugin.json LICENCE.md
             - name: Publish
               uses: softprops/action-gh-release@v2
               with:
